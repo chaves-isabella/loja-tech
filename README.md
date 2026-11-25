@@ -13,12 +13,6 @@ O diagrama acima representa a estrutura do banco `loja_tech`, com as seis tabela
 
 A tabela `log_operacoes` é independente das demais e armazena o registro de auditoria das operações executadas pelas procedures.
 
----
-
-**Disciplina:** Banco de Dados
-**Professor:** Atila Olivi
-**Integrante:** Isabella Chaves
-**Versão do MySQL utilizada:** 8.0.13 ou superior
 
 ---
 
