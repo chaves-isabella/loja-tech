@@ -13,12 +13,11 @@ O diagrama acima representa a estrutura do banco `loja_tech`, com as seis tabela
 
 A tabela `log_operacoes` é independente das demais e armazena o registro de auditoria das operações executadas pelas procedures.
 
-
 ---
 
 ## 1. Sobre o Projeto
 
-O projeto TechStore tem como objetivo desenvolver rotinas de banco de dados para a gestão de uma loja de produtos de tecnologia (e-commerce). O banco `loja_tech` armazena categorias, produtos, clientes, pedidos e itens de pedido. Sobre essa estrutura, foram implementadas stored procedures que encapsulam operações comuns do dia a dia, como cadastro de categorias, consulta de pedidos e contagem de produtos.
+O projeto TechStore tem como objetivo desenvolver rotinas de banco de dados para a gestão de uma loja de produtos de tecnologia (e-commerce). O banco `loja_tech` armazena categorias, produtos, clientes, pedidos e itens de pedido. Sobre essa estrutura, foram implementadas stored procedures que encapsulam operações comuns do dia a dia, como cadastro de categorias, consulta de pedidos, reajuste de preços, contagem de produtos e geração de extrato de clientes.
 
 A proposta é centralizar a lógica de negócio no próprio banco, de modo que diferentes sistemas (site, aplicativo ou sistema interno) possam executar as mesmas operações de forma padronizada e segura.
 
@@ -26,7 +25,9 @@ A proposta é centralizar a lógica de negócio no próprio banco, de modo que d
 
 - Aplicar os conceitos de stored procedures do MySQL na prática.
 - Utilizar parâmetros de entrada (`IN`) e de saída (`OUT`) nas rotinas.
-- Implementar validações antes de alterar os dados.
+- Implementar validações de regras de negócio antes de alterar os dados.
+- Retornar múltiplos conjuntos de resultados em uma única chamada.
+- Registrar operações relevantes na tabela de auditoria `log_operacoes`.
 - Desenvolver consultas que auxiliem a tomada de decisão em diferentes setores da loja.
 
 ## 3. Tecnologias Utilizadas
@@ -55,7 +56,7 @@ O banco de dados `loja_tech` é composto por seis tabelas.
 |---|---|
 | `script.sql` | Cria o banco `loja_tech` e suas seis tabelas. |
 | `inserts.sql` | Carrega os dados iniciais de categorias, produtos, clientes, pedidos e itens de pedido. |
-| `stored_procedure.sql` | Cria as cinco stored procedures do projeto e, ao final, lista as procedures criadas. |
+| `stored_procedure.sql` | Cria as sete stored procedures do projeto e, ao final, lista as procedures criadas. |
 | `queries.sql` | Contém as dez consultas desenvolvidas na atividade. |
 | `eer.png` | Diagrama EER do banco de dados. |
 | `README.md` | Este documento. |
@@ -87,7 +88,7 @@ Ao final do `stored_procedure.sql`, o comando abaixo lista as procedures do banc
 show procedure status where db = 'loja_tech';
 ```
 
-A lista deve conter as cinco procedures descritas na seção 7.
+A lista deve conter as sete procedures descritas na seção 7.
 
 ## 7. Stored Procedures Desenvolvidas
 
@@ -98,6 +99,30 @@ A lista deve conter as cinco procedures descritas na seção 7.
 | `inserir_categoria` | Cadastra uma nova categoria. |
 | `atualizar_telefone_cliente` | Atualiza o telefone de um cliente pelo seu identificador. |
 | `contar_produtos_categoria` | Conta os produtos de uma categoria e devolve o total por parâmetro de saída. |
+| `atualizar_preco_categoria` | Reajusta os preços dos produtos ativos de uma categoria, com limites de desconto e de aumento. |
+| `consultar_extrato_cliente` | Gera o extrato de um cliente em três conjuntos de resultados: dados, pedidos e resumo financeiro. |
+
+### 7.1 Regras de negócio adotadas
+
+- No reajuste de preços, o desconto máximo é de 50% e o aumento máximo é de 100%. Percentual igual a zero é tratado como erro.
+- No reajuste de preços, apenas produtos ativos são alterados.
+- No reajuste de preços, cada operação é registrada na tabela `log_operacoes`.
+- No extrato do cliente, os pedidos cancelados aparecem na listagem, mas são excluídos do resumo financeiro.
+- Se o cliente informado no extrato não existir, é retornada uma mensagem de erro em vez dos conjuntos de resultados.
+
+### 7.2 Exemplos de chamada
+
+```sql
+call listar_categorias_ativas();
+call buscar_pedidos_por_status('entregue');
+call contar_produtos_categoria(3, @total);
+select @total as total_produtos;
+call atualizar_preco_categoria(3, 10, @qtd, @msg);
+select @qtd as produtos_alterados, @msg as mensagem;
+call consultar_extrato_cliente(1);
+```
+
+Alguns exemplos alteram dados do banco, como inserção de categoria, alteração de telefone e reajuste de preços. Recomenda-se executá-los em uma cópia do banco.
 
 ## 8. Como Testar as Procedures
 
@@ -110,11 +135,16 @@ Cada procedure pode ser testada com um comando `call`. Execute os testes após o
 | 3 | `call contar_produtos_categoria(3, @total);` seguido de `select @total as total_produtos;` | Três produtos na categoria Periféricos. |
 | 4 | `call inserir_categoria('Acessórios', 'Cabos, adaptadores e suportes');` seguido de `select * from categorias;` | A nova categoria aparece na lista, com id 6. |
 | 5 | `call atualizar_telefone_cliente(1, '11999998888');` seguido de `select id_cliente, nome, telefone from clientes where id_cliente = 1;` | O telefone da Ana Silva passa a ser 11999998888. |
+| 6 | `call atualizar_preco_categoria(3, 10, @qtd, @msg);` seguido de `select @qtd as produtos_alterados, @msg as mensagem;` | Três produtos alterados e a mensagem "Sucesso: 3 produto(s) reajustado(s).". Os preços de Periféricos sobem 10%: Teclado de 249.90 para 274.89, Mouse de 349.90 para 384.89 e Headset de 499.90 para 549.89. |
+| 7 | `call consultar_extrato_cliente(1);` | Três conjuntos de resultados: os dados da Ana Silva; os pedidos 1 e 4; e o resumo, com 2 pedidos, valor total gasto de 10248.80 e ticket médio de 5124.40. |
 
 Observações sobre os testes:
 
-- Os testes 4 e 5 alteram dados. Execute cada um uma única vez, ou em uma cópia do banco. Se o teste 4 for repetido, a categoria é inserida novamente com outro id.
-- No teste 3, a variável `@total` só recebe valor depois do `call`. Por isso, o `select` deve ser executado logo em seguida.
+- Os testes 4, 5 e 6 alteram dados. Execute cada um uma única vez, ou em uma cópia do banco. Se o teste 4 for repetido, a categoria é inserida novamente com outro id. Se o teste 6 for repetido, os preços sobem mais 10%.
+- No teste 3 e no teste 6, as variáveis `@total`, `@qtd` e `@msg` só recebem valor depois do `call`. Por isso, o `select` deve ser executado logo em seguida.
+- No teste 7, a ordem dos pedidos depende da data de cada um. Se os dois tiverem a mesma data, a ordem entre eles pode variar.
+- Para ver a mensagem de erro do extrato, execute `call consultar_extrato_cliente(999);`. Ele deve retornar apenas a mensagem "ERRO: Cliente não encontrado.".
+- Para ver a mensagem de erro do reajuste, execute `call atualizar_preco_categoria(3, 0, @qtd, @msg);`. Nenhum preço é alterado.
 - Se um resultado não bater com o esperado, confira se o `inserts.sql` foi executado antes e se não há outros testes alterando os mesmos dados.
 
 ## 9. Conceitos de Banco de Dados Aplicados
@@ -125,8 +155,10 @@ Observações sobre os testes:
 - Stored procedures e delimitadores de comandos.
 - Parâmetros de entrada (`IN`) e saída (`OUT`).
 - Variáveis locais e estruturas condicionais (`IF`/`ELSEIF`).
-- Consultas com filtros (`WHERE`, `LIKE`), ordenação e funções de agregação.
+- Múltiplos conjuntos de resultados.
+- Consultas com filtros (`WHERE`, `LIKE`), ordenação e funções de agregação (`COUNT`, `SUM`, `AVG`, `MAX`).
 - Consultas com junções (`INNER JOIN`).
+- Registro de auditoria em tabela de log.
 
 ## 10. Importância do Projeto
 
