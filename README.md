@@ -15,9 +15,9 @@ A tabela `log_operacoes` é independente das demais e armazena o registro de aud
 
 ---
 
-**Disciplina:** [nome da disciplina]
-**Professor(a):** [nome do professor(a)]
-**Integrantes:** [nome completo dos integrantes]
+**Disciplina:** Banco de Dados
+**Professor:** Atila Olivi
+**Integrante:** Isabella Chaves
 **Versão do MySQL utilizada:** 8.0.13 ou superior
 
 ---
@@ -145,13 +145,13 @@ Além disso, as procedures permitem conceder acesso apenas à execução de oper
 | Campo | Descrição |
 |---|---|
 | Projeto | Sistema de Gestão de Loja de Tecnologia - TechStore |
-| Disciplina | [nome da disciplina] |
+| Disciplina | Banco de Dados |
 | Desenvolvimento | Individual |
 | Banco de Dados | MySQL |
 | Ferramenta | MySQL Workbench |
 | Linguagem | SQL |
-| Aluno(a) | [nome completo] |
-| Professor(a) | [nome do professor(a)] |
+| Aluno(a) | Isabella Nascimento Chaves |
+| Professor(a) | Atila Olivi |
 
 ## 12. Considerações Finais
 
